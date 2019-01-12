@@ -63,6 +63,9 @@ def tower_loss(scope, images, one_hot_labels, istraining):
         Tensor of shape [] containing the total loss for a batch of data
     """
 
+#    images = tf.cast(images, tf.float16)
+#    one_hot_labels = tf.cast(one_hot_labels, tf.float16)
+
     # Build inference Graph.
     # Build the portion of the Graph calculating the losses. Note that we will
     # assemble the total_loss using a custom function below.
@@ -170,35 +173,38 @@ def train(train_op, tower_losses, tower_accuracies, weights_param_lists):
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
     sess.run(init)
 
-    load_weights_param_from_npz(sess, npz_file = weights_file_imagenet, weights_param_list = weights_param_lists[0])
-    check_weights_param(sess, weights_param_lists = weights_param_lists)
+#    load_weights_param_from_npz(sess, npz_file = weights_file_imagenet, weights_param_list = weights_param_lists[0])
+#    check_weights_param(sess, weights_param_lists = weights_param_lists)
 
     avg_losses_r = [0, 0, 0, 0]
     avg_accuracies_r = [0, 0, 0, 0]
+
     for i in range(gs, 10000):
         
         start_time = time.time()
         
         _ = sess.run(train_op)
-        r = sess.run(tower_losses + tower_accuracies)
 
         duration = time.time() - start_time
         print(i, "step time : ", duration)
 
-        avg_losses_r =  [avg_losses_r[i] + r[i] for i in range(num_gpus)]
-        avg_accuracies_r = [avg_accuracies_r[i] + r[i + num_gpus] for i in range(num_gpus)]
+        if i / 20 != 0 and i % 20 == 0:
+            r = sess.run(tower_losses + tower_accuracies)
 
-        if i / 100 != 0 and i % 100 == 0:
-            print("##################################")
-            print("###### step", i, ",", i * batch_size, "images ######")
-            for gpu_id, loss_r in enumerate(avg_losses_r):
-                print('tower loss ', gpu_id, ": ", loss_r / 100.0)
-            for gpu_id, accuracy_r in enumerate(avg_accuracies_r):
-                print('tower accuracy ', gpu_id, ": ", accuracy_r / 100.0)
-            print("##################################")
+            avg_losses_r =  [avg_losses_r[i] + r[i] for i in range(num_gpus)]
+            avg_accuracies_r = [avg_accuracies_r[i] + r[i + num_gpus] for i in range(num_gpus)]
 
-            avg_losses_r =  [0, 0, 0, 0]
-            avg_accuracies_r = [0, 0, 0, 0]
+            if i / 100 != 0 and i % 100 == 0:
+                print("##################################")
+                print("###### step", i, ",", i * batch_size, "images ######")
+                for gpu_id, loss_r in enumerate(avg_losses_r):
+                    print('tower loss ', gpu_id, ": ", loss_r / 5.0)
+                for gpu_id, accuracy_r in enumerate(avg_accuracies_r):
+                    print('tower accuracy ', gpu_id, ": ", accuracy_r / 5.0)
+                print("##################################")
+
+                avg_losses_r =  [0, 0, 0, 0]
+                avg_accuracies_r = [0, 0, 0, 0]
 
 def make_train_data_batch():
     images, labels = data_pipeline(file_tfrecords = tfrecord_file_list, batch_size = batch_size)

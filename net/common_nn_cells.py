@@ -7,7 +7,7 @@ SAVE_VARIABLES = 'save_variables'
 # Allocate a variable with the specified parameters 
 # specific device field
 
-def _get_variable(name, shape, initializer, dtype= 'float', trainable= True):
+def _get_variable(name, shape, initializer, dtype= tf.float32, trainable= True):
 
 # emmm ?
         collections = [tf.GraphKeys.GLOBAL_VARIABLES, SAVE_VARIABLES]
@@ -46,16 +46,30 @@ def batch_normalization(x, is_training, scope, weights_param_list, decay= 0.9, e
                 weights_param_list.append(moving_variance)
 
                 # These ops will only be preformed when training.
-         
+
                 mean, variance = tf.nn.moments(x, axis)
+#                mean = tf.cast(mean, tf.float16)
+#                variance = tf.cast(variance, tf.float16)
+                
                 update_moving_mean = moving_averages.assign_moving_average(moving_mean, mean, decay)
                 update_moving_variance = moving_averages.assign_moving_average(moving_variance, variance, decay)
+#                update_moving_mean = tf.cast(update_moving_mean, tf.float16)
+#                update_moving_variance = tf.cast(update_moving_variance, tf.float16)
+
+
                 tf.add_to_collection(tf.GraphKeys.UPDATE_OPS , update_moving_mean)
                 tf.add_to_collection(tf.GraphKeys.UPDATE_OPS , update_moving_variance)
 
                 batch_normalization = tf.cond(is_training, 
                                                                   lambda: tf.nn.batch_normalization(x, mean, variance, beta, gamma, epsilon), 
                                                                   lambda: tf.nn.batch_normalization(x, moving_mean, moving_variance, beta, gamma, epsilon))
+
+                # mean, variance = tf.nn.moments(x, axis)
+                # mean = tf.cast(mean, tf.float16)
+                # variance = tf.cast(variance, tf.float16)
+
+                # batch_normalization = tf.nn.batch_normalization(x, mean, variance, beta, gamma, epsilon)
+
 
         return batch_normalization
 
